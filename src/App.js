@@ -1,7 +1,7 @@
-import { useState, useEffect, React } from "react";
+import { useState, React } from "react";
 import erc20abi from "./ERC20abi.json";
 import Web3 from "web3";
-const ethers = require("ethers");
+import erc20abiToken from "./ERC20apiToken.json"
 
 const bnbTestnetChainId = 97;
 
@@ -9,48 +9,147 @@ function App() {
   let { ethereum } = window;
   let web3 = new Web3(window.ethereum);
   let [account, setAccount] = useState("");
-  const [contractListened, setContractListened] = useState("");
+  let [connectButton, setConnectButton] = useState("Connect To Metamask");
+
+  const tokenAddress = "0x73aC1b0dfb7d0227A4D02a1cC450c7bd9729eFDD";
+  const fixedStakingAddress = "0x3f021974cbe41795c785Ce0F628c492865764202";
+  const contractToken = new web3.eth.Contract(erc20abiToken, tokenAddress);
+  const contractFixedStaking = new web3.eth.Contract(erc20abi, fixedStakingAddress);
+
   const [contractInfo, setContractInfo] = useState({
-    address: "-",
+    addressContract: "-",
     tokenName: "-",
     tokenSymbol: "-",
     totalSupply: "-"
   });
   const [balanceInfo, setBalanceInfo] = useState({
-    address: "-",
     balance: "-"
   });
   const [staked, setStaked] = useState({
-    address: "-",
     staked: "-"
   });
-
   const [rewards, setRewards] = useState({
-    address: "-",
     rewards: "-"
   })
+  const [duration, setDuration] = useState({
+    duration: "-"
+  })
+  const [totalFined, setTotalFined] = useState({
+    totalFined: "-"
+  })
 
-  const connectMetamask = async () => {
+  let myInterval;
+
+  function msToTime(ms) {
+    let seconds = (ms / 1000).toFixed();
+    if (seconds) return seconds;
+  }
+
+  function minToSec(min) {
+    let seconds = (min * 60).toFixed();
+    if (seconds) return seconds;
+  }
+
+  const connectMetamask = async (e) => {
+    e.preventDefault();
     if (ethereum) {
-      const accounts = await ethereum.request({ method: "eth_requestAccounts" });
-      setAccount(accounts[0]);
-      await switchNetwork(bnbTestnetChainId);
-      console.log(accounts)
+      try {
+        switchNetwork(bnbTestnetChainId);
+        const accounts = await ethereum.request({
+          method: "eth_requestAccounts",
+          params: [{ eth_accounts: {} }]
+        });
+        setAccount(accounts[0]);
+
+        var accountString = "";
+        var leng = accounts[0].length;
+        accountString = accounts[0].substring(0, 7) + '...' + accounts[0].substring(leng - 7, leng);
+        setConnectButton(accountString);
+
+        //getbalance
+        const balance = await contractToken.methods.balanceOf(accounts[0]).call();
+        const balanceWei = web3.utils.fromWei(balance, "ether");
+        setBalanceInfo({
+          balance: numberFormat(balanceWei, 2)
+        });
+        //getStake
+        const staked = await contractFixedStaking.methods.staked(accounts[0]).call();
+        const stakedWei = web3.utils.fromWei(staked, "ether");
+        setStaked({
+          staked: numberFormat(stakedWei, 2)
+        })
+
+        //tokenBeingHold
+        const totalFined = await contractFixedStaking.methods.tokenBeingHold(accounts[0]).call();
+        const totalFinedWei = web3.utils.fromWei(totalFined, "ether");
+        setTotalFined({
+          totalFined: numberFormat(totalFinedWei, 2)
+        })
+        if (numberFormat(stakedWei, 2) > "0.00") {
+          const Rewards = await contractFixedStaking.methods.rewards(accounts[0]).call();
+          const rewardsPerSecond = await contractFixedStaking.methods.earnedPerSecond(accounts[0]).call();
+          myInterval = setInterval(getMyRewards, 2500);
+          if (Rewards > 0 && rewardsPerSecond < Rewards) {
+            return myInterval;
+          } else {
+            clearInterval(myInterval);
+            console.log(rewardsPerSecond)
+          }
+        } else {
+          return;
+        }
+      } catch (error) {
+        console.log(error);
+        return;
+      }
     }
   }
 
-  // const disconnectMetamask = async () => {
-  //   if (ethereum) {
-  //     await window.ethereum.request({
-  //       method: "wallet_requestPermissions",
-  //       params: [{
-  //         eth_accounts: {}
-  //       }]
-  //     }).then(() => ethereum.request({
-  //       method: 'eth_requestAccounts'
-  //     }))
-  //   }
-  // }
+  const contractInform = async () => {
+    try {
+      //contractInfo
+      const tokenName = await contractToken.methods.name().call();
+      const tokenSymbol = await contractToken.methods.symbol().call();
+      const totalSupply = await contractToken.methods.totalSupply().call();
+      const totalSupplyWei = web3.utils.fromWei(totalSupply, "ether");
+      setContractInfo({
+        addressContract: tokenAddress,
+        tokenName: tokenName,
+        tokenSymbol: tokenSymbol,
+        totalSupply: numberFormat(totalSupplyWei, 2)
+      });
+
+      const duration = await contractFixedStaking.methods.duration().call();
+      if (duration === 600n) {
+        const tenMins = "10 Mins";
+        setDuration({
+          duration: String(tenMins)
+        })
+      } if (duration === 31540000n) {
+        const twelveMonths = "12 Months";
+        setDuration({
+          duration: String(twelveMonths)
+        })
+      } if (duration === 15552000n) {
+        const sixMonths = "6 Months";
+        setDuration({
+          duration: String(sixMonths)
+        })
+      }
+    } catch (error) {
+      console.log(error);
+      return;
+    }
+
+  }
+
+  const disconnectMetamask = async () => {
+    if (account) {
+      const accounts = "";
+      setAccount(accounts);
+      window.location.reload(false);
+    }
+  }
 
   const switchNetwork = async (chainId) => {
     const currenChainId = await web3.eth.getChainId();
@@ -91,38 +190,9 @@ function App() {
       });
     } catch (err) {
       console.log(`error ocuured while adding new chain with chainId:${networkDetails.chainId}, err: ${err.message}`)
+      return;
     }
   }
-
-  useEffect(() => {
-    if (contractInfo.address !== "-") {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new ethers.Contract(contractInfo.address, erc20abi, provider);
-
-      setContractListened(contract);
-    }
-  }, [contractInfo.address]);
-
-  const handleSubmit = async (e) => {
-    try {
-      e.preventDefault();
-      const Address = "0x0F308ae5ba0F324B240F275917168a499F75b353";
-      const contract = new web3.eth.Contract(erc20abi, Address);
-      const tokenName = await contract.methods.name().call();
-      const tokenSymbol = await contract.methods.symbol().call();
-      const totalSupply = await contract.methods.totalSupply().call();
-      const totalSupplyWei = web3.utils.fromWei(totalSupply, "ether");
-
-      setContractInfo({
-        address: Address,
-        tokenName: tokenName,
-        tokenSymbol: tokenSymbol,
-        totalSupply: numberFormat(totalSupplyWei, 4)
-      });
-    } catch (error) {
-      return alert('Please switch network first, click "Connect To Metamask" to switch network BNB Testnet!');
-    }
-  };
 
   const numberFormat = (number, toFixed) => {
     number = Number(number).toFixed(toFixed) + '';
@@ -136,337 +206,280 @@ function App() {
     return x1 + x2;
   }
 
-  const getMyBalance = async () => {
+  const getMyRewards = async () => {
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new web3.eth.Contract(erc20abi, contractInfo.address);
-      const signer = await provider.getSigner();
-      const signerAddress = await signer.getAddress();
-      const balance = await contract.methods.balanceOf(signerAddress).call();
-      const balanceWei = web3.utils.fromWei(balance, "ether");
+      const contract = new web3.eth.Contract(erc20abi, fixedStakingAddress);
+      const rewardsPerSecond = await contract.methods.earnedPerSecond(account).call();
+      const rewardsWei = web3.utils.fromWei(rewardsPerSecond, "ether");
 
-      setBalanceInfo({
-        address: signerAddress,
-        balance: numberFormat(balanceWei, 4)
-      });
+      setRewards({
+        rewards: numberFormat(rewardsWei, 2)
+      })
     } catch (error) {
-      console.log(error)
-      return alert('Please click "Get Token info" first!')
+      // console.log(error)
+      return;
+    }
+  }
+
+  const handleApprove = async (e) => {
+    e.preventDefault();
+    if (account) {
+      try {
+        const data = new FormData(e.target);
+        const amountWei = web3.utils.toWei(data.get("amount"), "ether");
+        console.log(amountWei)
+
+        if (data.get("amount") > 0) {
+          await contractToken.methods.approve(fixedStakingAddress, amountWei).send({ from: account });
+        } else {
+          alert("You must input amount to approve");
+        }
+      } catch (error) {
+        console.log(error);
+        return;
+      }
+    } else {
+      return alert("Please connect to Metamask")
     }
 
   };
 
-  const getMyStaked = async () => {
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const contract = new web3.eth.Contract(erc20abi, contractInfo.address);
-      const signer = await provider.getSigner();
-      const signerAddress = await signer.getAddress();
-      const staked = await contract.methods.staked(signerAddress).call();
-      const stakedWei = web3.utils.fromWei(staked, "ether");
-
-      setStaked({
-        address: signerAddress,
-        staked: numberFormat(stakedWei, 4)
-      })
-    } catch (error) {
-      console.log(error)
-      return alert('Please click "Get Token info" first!')
-    }
-  }
-
-  const getMyRewards = async () => {
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const signerAddress = await signer.getAddress();
-      const contract = new web3.eth.Contract(erc20abi, contractInfo.address);
-      const Rewards = await contract.methods.rewards(signerAddress).call();
-      const rewardsWei = web3.utils.fromWei(Rewards, "ether");
-
-      setRewards({
-        address: signerAddress,
-        rewards: numberFormat(rewardsWei, 4)
-      })
-    } catch (error) {
-      console.log(error)
-      return alert("Please get contract info first")
-    }
-  }
-
-  const handleDuration = async (e) => {
-    try {
-      e.preventDefault();
-      const data = new FormData(e.target);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new web3.eth.Contract(erc20abi, contractInfo.address);
-      await contract.methods.setDuration(data.get("_duration")).send({ from: signer.address });
-    } catch (error) {
-      console.log(error)
-      //console.log(tenMins)
-      return alert("Choose the duration you want")
-    }
-  }
-
   const handleStake = async (e) => {
-    try {
-      e.preventDefault();
-      const data = new FormData(e.target);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const contract = new web3.eth.Contract(erc20abi, contractInfo.address);
-      const duration = await contract.methods.duration(signer.address).call();
-      const amountWei = web3.utils.toWei(data.get("amount"), "ether");
+    e.preventDefault();
+    if (account) {
+      try {
+        const data = new FormData(e.target);
 
-      if (duration === 0n) {
-        return alert("Please set duration")
-      } else {
-        if (!data.get("amount")) {
-          return alert('you must input token to staking')
+        const duration = await contractFixedStaking.methods.duration(account).call();
+        const amountWei = web3.utils.toWei(data.get("amount"), "ether");
+        const balance = await contractToken.methods.balanceOf(account).call();
+        const allowance = await contractToken.methods.allowance(account, fixedStakingAddress).call();
+
+        console.log(allowance)
+        console.log(amountWei)
+
+        if (allowance > 0) {
+          if (allowance >= amountWei) {
+            if (data.get("amount") > 0) {
+              if (balance >= amountWei) {
+                if (duration > 0) {
+                  if (staked.staked === "0.00") {
+                    if (totalFined.totalFined === "0.00") {
+                      await contractFixedStaking.methods.stake(amountWei).send({ from: account });
+                      window.location.reload(false);
+                    } else {
+                      alert("Your token is on hold")
+                    }
+                  } else {
+                    alert("The staking is not finish or you have not withdraw")
+                  }
+                } else {
+                  alert("Duration has not been fixed yet")
+                }
+              } else {
+                alert("Not enough balance")
+                return
+              }
+            } else {
+              alert("You must input token to staking")
+            }
+          } else {
+            alert("allowance not enought")
+          }
         } else {
-          await contract.methods.stake(amountWei).send({ from: signer.address });
+          alert("Please approve amount token you want to stake")
         }
+
+
+      } catch (error) {
+        console.log(error);
+        return;
       }
-    } catch (error) {
-      console.log(error);
-      return alert('Please click "Get Token info" first!')
+
+    } else {
+      return alert("Please connect to Metamask")
     }
 
   };
 
   const handleUnStake = async (e) => {
-    try {
-      e.preventDefault();
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(contractInfo.address, erc20abi, signer);
-      await contract.unstake();
-    } catch (error) {
-      return alert("nothing to withdraw");
+    e.preventDefault();
+    if (account) {
+      try {
+        if (staked.staked > "0.00") {
+          await contractFixedStaking.methods.withdrawn().send({ from: account });
+          window.location.reload(false);
+        } else {
+          return alert("Nothing to claim");
+        }
+      } catch (error) {
+        console.log(error)
+      }
+    } else {
+      return alert("Please connect to Metamask")
     }
   };
 
+  const handleUnstakeTokenHold = async (e) => {
+    e.preventDefault();
+    try {
+      if (account) {
+        const withdrawTs = await contractFixedStaking.methods.withdrawnFromTs(account).call();
+        console.log(Number(minToSec(5)));
+        console.log(Number(withdrawTs));
+        console.log(msToTime(Date.now()));
+
+        if (staked.staked === "0.00") {
+          if (totalFined.totalFined > "0.00") {
+            if ((Number(minToSec(5)) + Number(withdrawTs)) < msToTime(Date.now())) {
+              await contractFixedStaking.methods.afterOneDay(account).send({ from: account });
+              window.location.reload(false);
+            } else {
+              alert("Your token is held for 1 day");
+            }
+          } else {
+            alert("Your tokens are not held")
+          }
+        } else {
+          alert("The staking time is not over yet")
+        }
+      } else {
+        alert("Please connect to Metamask")
+      }
+    } catch (error) {
+      console.log(error)
+      return;
+    }
+  }
+
 
   return (
-    <div className="App">
-      <div>
-        <table>
-          <tr>
-            <th><button onClick={connectMetamask}>CONNECT TO METAMASK</button></th>
-            <th><p>{account}</p></th>
-          </tr>
-          {/* <tr>
-            <th><button onClick={disconnectMetamask}>DISCONNECT TO METAMASK</button></th>
-          </tr> */}
-        </table>
-      </div>
+    <body onload={contractInform()}>
+      <div className="App">
+        <div id="connectMeta">
+          <div>
+            <button class="button-55" onClick={connectMetamask}>{connectButton}</button>
+          </div>
+          <div>
+            <button class="button-55" onClick={disconnectMetamask}>Log out</button>
+          </div>
+        </div>
 
-      <div>
-        <div className="credit-card w-full lg:w-3/4 sm:w-auto shadow-lg mx-auto rounded-xl bg-white">
-          <main className="mt-4 p-4">
-            <h1 className="text-xl font-semibold text-gray-700 text-center">
-              Read from smart contract
-            </h1>
-            <div className="">
-              <div className="my-3">
-              </div>
-            </div>
-          </main>
+        <div>
+          <h2>FIXED STAKING</h2>
+        </div>
 
-          <footer className="p-4">
-            <button
-              type="submit"
-              className="btn btn-primary submit-button focus:ring focus:outline-none w-full"
-              onClick={handleSubmit}
-            >
-              Get token info
-            </button>
-          </footer>
-          <div className="px-4">
-            <div className="overflow-x-auto">
-              <table className="table w-full">
+        <div id="main">
+          <div>
+            <div id="contractInfo">
+              <table>
                 <thead>
                   <tr>
-                    <th>Name</th>
+                    <th>Name Token</th>
                     <th>Symbol</th>
                     <th>Total supply</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <th>{contractInfo.tokenName}</th>
-                    <td>{contractInfo.tokenSymbol}</td>
-                    <td>{contractInfo.totalSupply}</td>
+                    <th >{contractInfo.tokenName}</th>
+                    <td >{contractInfo.tokenSymbol}</td>
+                    <td >{contractInfo.totalSupply}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </div>
 
-          <div className="p-4">
-            <button
-              onClick={getMyBalance}
-              type="submit"
-              className="btn btn-primary submit-button focus:ring focus:outline-none w-full"
-            >
-              Get your balance
-            </button>
-          </div>
-          <div className="px-4">
-            <div className="overflow-x-auto">
-              <table className="table w-full">
-                <thead>
-                  <tr>
-                    <th>Address</th>
-                    <th>Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th>{balanceInfo.address}</th>
-                    <th>{balanceInfo.balance}</th>
-                  </tr>
-                </tbody>
-              </table>
+            <div id="bsrInfo">
+              <div>Balance : </div>
+              <p >{balanceInfo.balance}</p>
             </div>
-          </div>
-          <div className="p-4">
-            <button
-              onClick={getMyStaked}
-              type="submit"
-              className="btn btn-primary submit-button focus:ring focus:outline-none w-full"
-            >
-              Get your staked
-            </button>
-          </div>
-          <div className="px-4">
-            <div className="overflow-x-auto">
-              <table className="table w-full">
-                <thead>
-                  <tr>
-                    <th>Address</th>
-                    <th>Staked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th>{staked.address}</th>
-                    <th>{staked.staked}</th>
-                  </tr>
-                </tbody>
-              </table>
+
+            <div id="bsrInfo">
+              <div>Staked : </div>
+              <p >{staked.staked}</p>
+
+            </div>
+
+            <div id="bsrInfo">
+              <div> Rewards : </div>
+              <p>{rewards.rewards}</p>
             </div>
           </div>
 
-          <div className="p-4">
-            <button
-              onClick={getMyRewards}
-              type="submit"
-              className="btn btn-primary submit-button focus:ring focus:outline-none w-full"
-            >
-              Get your rewards
-            </button>
-          </div>
-          <div className="px-4">
-            <div className="overflow-x-auto">
-              <table className="table w-full">
-                <thead>
-                  <tr>
-                    <th>Address</th>
-                    <th>Rewards</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th>{rewards.address}</th>
-                    <td>{rewards.rewards}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div className="m-4 credit-card w-full lg:w-3/4 sm:w-auto shadow-lg mx-auto rounded-xl bg-white">
-          <div className="mt-4 p-4">
-            <h1 className="text-xl font-semibold text-gray-700 text-center">
-              Write to contract
-            </h1>
-            <form onSubmit={handleDuration}>
-              <div className="my-3">
-                <input type="radio" name="_duration" value="600" /> 10 Mins
-                <input type="radio" name="_duration" value="15552000" /> 6 Months
-                <input type="radio" name="_duration" value="31104000" /> 12 Months
-              </div>
-              <footer className="p-4">
-                <button
-                  type="submit"
-                  className="btn btn-primary submit-button focus:ring focus:outline-none w-full"
-                >
-                  Set Duration
-                </button>
-              </footer>
-            </form>
-
-            <form onSubmit={handleStake}>
-              <div className="my-3">
+          <div id="front-bot">
+            <p>{duration.duration} term</p>
+            <div>
+              <form onSubmit={handleApprove} id="approve-this">
                 <input
                   type="text"
                   name="amount"
-                  className="input input-bordered block w-full focus:ring focus:outline-none"
-                  placeholder="Amount to stake"
+                  placeholder="Amount to approve"
+                  id="amountStake"
                 />
-              </div>
-              <footer className="p-4">
-                <button
-                  type="submit"
-                  className="btn btn-primary submit-button focus:ring focus:outline-none w-full"
-                >
+                <button type="submit" class="button-40">
+                  Approve
+                </button>
+              </form>
+              <form onSubmit={handleStake}>
+                <input
+                  type="text"
+                  name="amount"
+                  placeholder="Amount to stake"
+                  id="amountStake"
+                />
+                <button type="submit" class="button-40" >
                   Stake
                 </button>
-              </footer>
-            </form>
+              </form>
 
-            <footer className="p-4">
               <button
                 type="submit"
-                className="btn btn-primary submit-button focus:ring focus:outline-none w-full"
                 data-toggle="modal" data-target="#exampleModalCenter"
+                class="button-40"
+              >
+                Claim
+              </button>
+            </div>
+
+            <div>
+              <p>Holding : {totalFined.totalFined}</p>
+              <button
+                type="submit"
+                onClick={handleUnstakeTokenHold}
               >
                 Withdraw
               </button>
-              <div className="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
-                aria-hidden="true">
-                <div className="modal-dialog modal-dialog-centered" role="document">
-                  <div className="modal-content">
-                    <div className="modal-header">
-                      <h5 className="modal-title" id="exampleModalLongTitle">Notification</h5>
-                      <button type="button" className="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                      </button>
-                    </div>
-                    <div className="modal-body">
-                      If you withdraw before the end time, you will not receive rewards and will be fined 1%.
-                      Are you sure?
-                    </div>
-                    <div className="modal-footer" >
-                      <button type="button" className="btn btn-secondary" data-dismiss="modal">Close</button>
-                      <button type="button" className="btn btn-primary" data-dismiss="modal" onClick={handleUnStake}>Continue</button>
-                    </div>
+            </div>
+
+            <div className="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+              aria-hidden="true">
+              <div className="modal-dialog modal-dialog-centered" role="document">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title" id="exampleModalLongTitle">Notification</h5>
+                    <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div className="modal-body">
+                    If you claim before the end time, your request will go to a 5 minute cooldown.
+                    You will be subject to an early withdrawal fee of (1%) and will not be able to bet back on this pool until the cooldown is over
+                  </div>
+                  <div className="modal-footer" >
+                    <button type="button" className="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" className="btn btn-primary" data-dismiss="modal" onClick={handleUnStake}>Continue</button>
                   </div>
                 </div>
               </div>
-            </footer>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+    </body>
+
+
   );
 }
 

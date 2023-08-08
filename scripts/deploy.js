@@ -4,7 +4,8 @@ async function main() {
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  const contract = await ethers.deployContract("FixedStaking");
+  const Contract = await ethers.getContractFactory("FixedStaking");
+  const contract = await Contract.deploy("0x73aC1b0dfb7d0227A4D02a1cC450c7bd9729eFDD");
 
   console.log("contract address:", await contract.getAddress());
 }
