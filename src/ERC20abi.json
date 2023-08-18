@@ -13,6 +13,11 @@
     {
         "inputs": [
             {
+                "internalType": "uint256",
+                "name": "_termId",
+                "type": "uint256"
+            },
+            {
                 "internalType": "address",
                 "name": "account",
                 "type": "address"
@@ -24,20 +29,12 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "duration",
-        "outputs": [
+        "inputs": [
             {
                 "internalType": "uint256",
-                "name": "",
+                "name": "_termId",
                 "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
+            },
             {
                 "internalType": "address",
                 "name": "account",
@@ -74,6 +71,11 @@
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "name": "rewards",
@@ -91,17 +93,9 @@
         "inputs": [
             {
                 "internalType": "uint256",
-                "name": "_duration",
+                "name": "_termId",
                 "type": "uint256"
-            }
-        ],
-        "name": "setDuration",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
+            },
             {
                 "internalType": "uint256",
                 "name": "amount",
@@ -119,6 +113,11 @@
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "name": "staked",
@@ -126,6 +125,53 @@
             {
                 "internalType": "uint256",
                 "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_termId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_duration",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_interestRate",
+                "type": "uint256"
+            }
+        ],
+        "name": "termInfo",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "terms",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "duration",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "interestRate",
                 "type": "uint256"
             }
         ],
@@ -151,6 +197,11 @@
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "name": "tokenBeingHold",
@@ -165,8 +216,14 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "withdrawn",
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_termId",
+                "type": "uint256"
+            }
+        ],
+        "name": "withdraw",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -177,6 +234,11 @@
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "name": "withdrawnFromTs",

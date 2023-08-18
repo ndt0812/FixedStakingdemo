@@ -5,7 +5,7 @@ async function main() {
   console.log("Deploying contracts with the account:", deployer.address);
 
   const Contract = await ethers.getContractFactory("FixedStaking");
-  const contract = await Contract.deploy("0x73aC1b0dfb7d0227A4D02a1cC450c7bd9729eFDD");
+  const contract = await Contract.deploy("0x40195D7F7aCcD636B4e8000a64E31e295d954b41");
 
   console.log("contract address:", await contract.getAddress());
 }

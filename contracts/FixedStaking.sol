@@ -8,27 +8,33 @@ contract FixedStaking {
     using SafeMath for uint256;
     ERC20 public token;
 
+    struct Term {
+        uint256 duration;
+        uint256 interestRate;
+    }
+
+    mapping(uint256 => Term) public terms;
+
     //tokens staked
-    mapping(address => uint256) public staked;
+    mapping(address => mapping(uint256 => uint256)) public staked;
     //Profit amount
-    mapping(address => uint256) public rewards;
+    mapping(address => mapping(uint256 => uint256)) public rewards;
     //withdrawn timelinez
-    mapping(address => uint256) public withdrawnFromTs;
+    mapping(address => mapping(uint256 => uint256)) public withdrawnFromTs;
     //stake end time
-    mapping(address => uint256) private finishAt;
+    mapping(address => mapping(uint256 => uint256)) private finishAt;
     //staking timeline
-    mapping(address => uint256) private stakedFromTs;
+    mapping(address => mapping(uint256 => uint256)) private stakedFromTs;
     //one second earned reward
-    mapping(address => uint256) private rewardPerSecond;
+    mapping(address => mapping(uint256 => uint256)) private rewardPerSecond;
     //the first 10% of duration
-    mapping(address => uint256) private tenPercentDuration;
+    mapping(address => mapping(uint256 => uint256)) private tenPercentDuration;
     // staked - fined
-    mapping(address => uint256) private totalFined;
+    mapping(address => mapping(uint256 => uint256)) private totalFined;
     //token being hold of user
-    mapping(address => uint256) public tokenBeingHold;
+    mapping(address => mapping(uint256 => uint256)) public tokenBeingHold;
 
     address public owner;
-    uint256 public duration;
     uint256 private theFirstTenPercent;
     uint256 private fined;
 
@@ -42,94 +48,115 @@ contract FixedStaking {
         _;
     }
 
-    function setDuration(uint256 _duration) external onlyOwner {
-        duration = _duration;
+    function termInfo(
+        uint256 _termId,
+        uint256 _duration,
+        uint256 _interestRate
+    ) external onlyOwner {
+        terms[_termId] = Term(_duration, _interestRate);
     }
 
-    function stake(uint256 amount) external {
+    function stake(uint256 _termId, uint256 amount) external {
         require(amount > 0, "amount is <= 0");
         require(token.balanceOf(msg.sender) >= amount, "balance is <= amount");
-        require(duration > 0, "you must set duration");
         require(
-            staked[msg.sender] == 0,
+            staked[msg.sender][_termId] == 0,
             "The staking is not finish or you have not withdrawn"
         );
-        require(tokenBeingHold[msg.sender] == 0, "Your token is on hold ");
+        require(
+            tokenBeingHold[msg.sender][_termId] == 0,
+            "Your token is on hold "
+        );
         token.transferFrom(msg.sender, address(this), amount);
-        staked[msg.sender] = amount;
-        timeWhenStake(msg.sender);
-        tokenWhenStake(msg.sender);
+        staked[msg.sender][_termId] = amount;
+        timeWhenStake(_termId, msg.sender);
+        tokenWhenStake(_termId, msg.sender);
     }
 
-    function withdrawn() external {
-        require(staked[msg.sender] > 0, "You haven't staked yet");
-        require(finishAt[msg.sender] > 0, "The staking has ended");
-        withdrawnFromTs[msg.sender] = block.timestamp;
-        tokenBeingHold[msg.sender] = totalFined[msg.sender];
-        if (finishAt[msg.sender] <= block.timestamp) {
-            getReward();
-            whenWithdrawn(msg.sender);
+    function withdraw(uint256 _termId) external {
+        require(staked[msg.sender][_termId] > 0, "You haven't staked yet");
+        require(finishAt[msg.sender][_termId] > 0, "The staking has ended");
+        withdrawnFromTs[msg.sender][_termId] = block.timestamp;
+        tokenBeingHold[msg.sender][_termId] = totalFined[msg.sender][_termId];
+        if (finishAt[msg.sender][_termId] <= block.timestamp) {
+            getReward(_termId);
+            whenWithdrawn(_termId, msg.sender);
         } else {
             if (theFirstTenPercent > block.timestamp) {
-                staked[msg.sender] = 0;
-                finishAt[msg.sender] = 0;
-                rewards[msg.sender] = 0;
+                staked[msg.sender][_termId] = 0;
+                finishAt[msg.sender][_termId] = 0;
+                rewards[msg.sender][_termId] = 0;
             } else {
-                token.transfer(msg.sender, totalFined[msg.sender]);
-                whenWithdrawn(msg.sender);
+                token.transfer(msg.sender, totalFined[msg.sender][_termId]);
+                whenWithdrawn(_termId, msg.sender);
             }
         }
     }
 
-    function afterOneDay(address account) public {
-        require(staked[account] == 0, "The staking time is not over yet");
-        require(tokenBeingHold[account] > 0, "Your tokens are not held");
+    function afterOneDay(uint256 _termId, address account) public {
         require(
-            (5 minutes + withdrawnFromTs[account] < block.timestamp),
+            staked[account][_termId] == 0,
+            "The staking time is not over yet"
+        );
+        require(
+            tokenBeingHold[account][_termId] > 0,
+            "Your tokens are not held"
+        );
+        require(
+            (5 minutes + withdrawnFromTs[account][_termId] < block.timestamp),
             "Your token is held for 1 day"
         );
-        token.transfer(account, tokenBeingHold[account]);
-        whenWithdrawn(msg.sender);
+        token.transfer(account, tokenBeingHold[account][_termId]);
+        whenWithdrawn(_termId, msg.sender);
     }
 
-    function earnedPerSecond(address account) external view returns (uint256) {
-        require(duration > 0, "You must set duration first!");
-        require(rewards[account] > 0, "You are not staking yet");
-        if (finishAt[account] <= block.timestamp) {
-            return rewards[account];
+    function earnedPerSecond(
+        uint256 _termId,
+        address account
+    ) external view returns (uint256) {
+        if (finishAt[account][_termId] <= block.timestamp) {
+            return rewards[account][_termId];
         }
-        uint256 showRewardPerSecond = rewardPerSecond[account] *
-            (block.timestamp - stakedFromTs[account]);
+        uint256 showRewardPerSecond = rewardPerSecond[account][_termId] *
+            (block.timestamp - stakedFromTs[account][_termId]);
         return showRewardPerSecond;
     }
 
-    function whenWithdrawn(address account) private {
-        staked[account] = 0;
-        finishAt[account] = 0;
-        rewards[account] = 0;
+    function whenWithdrawn(uint256 _termId, address account) private {
+        staked[account][_termId] = 0;
+        finishAt[account][_termId] = 0;
+        rewards[account][_termId] = 0;
         fined = 0;
-        totalFined[account] = 0;
-        tokenBeingHold[account] = 0;
+        totalFined[account][_termId] = 0;
+        tokenBeingHold[account][_termId] = 0;
     }
 
-    function timeWhenStake(address account) private {
-        finishAt[account] = duration + block.timestamp;
-        stakedFromTs[account] = block.timestamp;
-        tenPercentDuration[account] = (duration * 10) / 100;
+    function timeWhenStake(uint256 _termId, address account) private {
+        Term storage term = terms[_termId];
+        finishAt[account][_termId] = term.duration + block.timestamp;
+        stakedFromTs[account][_termId] = block.timestamp;
+        tenPercentDuration[account][_termId] = (term.duration * 10) / 100;
         theFirstTenPercent =
-            tenPercentDuration[account] +
-            stakedFromTs[account];
+            tenPercentDuration[account][_termId] +
+            stakedFromTs[account][_termId];
     }
 
-    function tokenWhenStake(address account) private {
-        rewards[account] = (((staked[account] * 7) / 100) * duration) / 3.154e7;
-        fined = ((staked[account] * 1) / 100);
-        totalFined[account] = staked[account] - fined;
-        rewardPerSecond[account] = rewards[account] / duration;
+    function tokenWhenStake(uint256 _termId, address account) private {
+        Term storage term = terms[_termId];
+        rewards[account][_termId] =
+            (((staked[account][_termId] * term.interestRate) / 100) *
+                term.duration) /
+            3.154e7;
+        fined = ((staked[account][_termId] * 1) / 100);
+        totalFined[account][_termId] = staked[account][_termId] - fined;
+        rewardPerSecond[account][_termId] =
+            rewards[account][_termId] /
+            term.duration;
     }
 
-    function getReward() private {
-        uint reward = rewards[msg.sender] + staked[msg.sender];
+    function getReward(uint256 _termId) private {
+        uint reward = rewards[msg.sender][_termId] +
+            staked[msg.sender][_termId];
         token.transfer(msg.sender, reward);
     }
 }
