@@ -142,6 +142,8 @@ function App() {
             }
           })
 
+
+
         //tokenBeingHold
         let promiseTotalFined1 = new Promise(async function (resolve) {
           const totalFinedOne = await contractFixedStaking.methods.tokenBeingHold(accounts[0], term[0]).call();
@@ -161,7 +163,6 @@ function App() {
 
         Promise.all([promiseTotalFined1, promiseTotalFined2, promiseTotalFined3])
           .then(async function ([result1, result2, result3]) {
-
             setTotalFined({
               totalFined1: numberFormat(result1, 2),
               totalFined2: numberFormat(result2, 2),
@@ -174,7 +175,7 @@ function App() {
               document.getElementById('time-cooldown-a').style.display = 'none';
               document.getElementById('time-a').style.display = 'none';
               document.getElementById('stake-one').style.display = '';
-              document.getElementById('approve-one').style.display = '';
+              document.getElementById('approve-a').style.display = '';
               document.getElementById('claim-a').style.display = '';
             } else {
               const timeStampWithdraw = await contractFixedStaking.methods.withdrawnFromTs(accounts[0], term[0]).call();
@@ -186,7 +187,7 @@ function App() {
               document.getElementById('time-a').style.display = '';
               document.getElementById('claim-a').style.display = 'none';
               document.getElementById('stake-one').style.display = 'none';
-              document.getElementById('approve-one').style.display = 'none';
+              document.getElementById('approve-a').style.display = 'none';
             }
 
             if (numberFormat(result2, 2) === "0.00") {
@@ -195,7 +196,7 @@ function App() {
               document.getElementById('time-cooldown-b').style.display = 'none';
               document.getElementById('time-b').style.display = 'none';
               document.getElementById('stake-two').style.display = '';
-              document.getElementById('approve-two').style.display = '';
+              document.getElementById('approve-b').style.display = '';
               document.getElementById('claim-b').style.display = '';
             } else {
               const timeStampWithdraw = await contractFixedStaking.methods.withdrawnFromTs(accounts[0], term[1]).call();
@@ -206,7 +207,7 @@ function App() {
               document.getElementById('time-b').style.display = '';
               withDrawFromTs2();
               document.getElementById('stake-two').style.display = 'none';
-              document.getElementById('approve-two').style.display = 'none';
+              document.getElementById('approve-b').style.display = 'none';
               document.getElementById('claim-b').style.display = 'none';
             }
 
@@ -216,7 +217,7 @@ function App() {
               document.getElementById('time-c').style.display = 'none';
               document.getElementById('holding-token-c').style.display = 'none';
               document.getElementById('stake-three').style.display = '';
-              document.getElementById('approve-three').style.display = '';
+              document.getElementById('approve-c').style.display = '';
               document.getElementById('claim-c').style.display = '';
             } else {
               const timeStampWithdraw = await contractFixedStaking.methods.withdrawnFromTs(accounts[0], term[2]).call();
@@ -227,7 +228,7 @@ function App() {
               document.getElementById('time-c').style.display = '';
               withDrawFromTs3()
               document.getElementById('stake-three').style.display = 'none';
-              document.getElementById('approve-three').style.display = 'none';
+              document.getElementById('approve-c').style.display = 'none';
               document.getElementById('claim-c').style.display = 'none';
             }
           })
@@ -288,7 +289,6 @@ function App() {
 
     document.getElementById('timer-cd-c').innerHTML = hours + "h " + mins + "m " + secs + "s ";
   }
-
 
   const contractInform = async () => {
     try {
@@ -351,7 +351,6 @@ function App() {
         })
 
     } catch (error) {
-      console.log(error);
       return;
     }
 
@@ -422,23 +421,26 @@ function App() {
 
   const getMyRewards = async () => {
     try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
       if (staked.stakedTermOne > "0.00" || staked.stakedTermTwo > "0.00" || staked.stakedTermThree > "0.00") {
         let promiseTotalFined1 = new Promise(async function (resolve) {
-          const rewardsPerSecondOne = await contractFixedStaking.methods.earnedPerSecond(term[0], account).call();
+          const rewardsPerSecondOne = await contractFixedStaking.methods.earnedPerSecond(term[0], signerAddress).call();
           const rewardsWeiOne = web3.utils.fromWei(rewardsPerSecondOne, "ether");
           resolve(rewardsWeiOne);
 
         })
         let promiseTotalFined2 = new Promise(async function (resolve) {
 
-          const rewardsPerSecondTwo = await contractFixedStaking.methods.earnedPerSecond(term[1], account).call();
+          const rewardsPerSecondTwo = await contractFixedStaking.methods.earnedPerSecond(term[1], signerAddress).call();
           const rewardsWeiTwo = web3.utils.fromWei(rewardsPerSecondTwo, "ether");
           resolve(rewardsWeiTwo);
 
         })
         let promiseTotalFined3 = new Promise(async function (resolve) {
 
-          const rewardsPerSecondThree = await contractFixedStaking.methods.earnedPerSecond(term[2], account).call();
+          const rewardsPerSecondThree = await contractFixedStaking.methods.earnedPerSecond(term[2], signerAddress).call();
           const rewardsWeiThree = web3.utils.fromWei(rewardsPerSecondThree, "ether");
           resolve(rewardsWeiThree);
         })
@@ -473,9 +475,9 @@ function App() {
           const amountWei = web3.utils.toWei(data.get("amount"), "ether");
           console.log(amountWei)
           await contractToken.methods.approve(fixedStakingAddress, amountWei).send({ from: account });
-          document.getElementById('approve-one').reset();
-          document.getElementById('approve-two').reset();
-          document.getElementById('approve-three').reset();
+          document.getElementById('stake-one').reset();
+          document.getElementById('stake-two').reset();
+          document.getElementById('stake-three').reset();
         } else {
           alert("You must input amount to approve");
         }
@@ -511,24 +513,22 @@ function App() {
         if (balance < amountWei) {
           return alert("Not enough balance");
         }
-        console.log(staked.stakedTermTwo)
-        if (staked.stakedTermOne > "0.00" && data.get("term-one") === term[0]) {
+        if (staked.stakedTermOne > "0.00" && Number(data.get("term-one")) === term[0]) {
           return alert("The staking is not finish or you have not withdraw");
         }
-
-        if (staked.stakedTermTwo > "0.00" && data.get("term-two") === term[1]) {
+        if (staked.stakedTermTwo > "0.00" && Number(data.get("term-two")) === term[1]) {
           return alert("The staking is not finish or you have not withdraw");
         }
-        if (staked.stakedTermThree > "0.00" && data.get("term-three") === term[2]) {
+        if (staked.stakedTermThree > "0.00" && Number(data.get("term-three")) === term[2]) {
           return alert("The staking is not finish or you have not withdraw");
         }
-        if (totalFined.totalFined1 > "0.00" && data.get("term-one") === term[0]) {
+        if (totalFined.totalFined1 > "0.00" && Number(data.get("term-one")) === term[0]) {
           return alert("Your token is on hold")
         }
-        if (totalFined.totalFined2 > "0.00" && data.get("term-two") === term[1]) {
+        if (totalFined.totalFined2 > "0.00" && Number(data.get("term-two")) === term[1]) {
           return alert("Your token is on hold")
         }
-        if (totalFined.totalFined3 > "0.00" && data.get("term-three") === term[2]) {
+        if (totalFined.totalFined3 > "0.00" && Number(data.get("term-three")) === term[2]) {
           return alert("Your token is on hold")
         }
         if (data.get("term-one")) {
@@ -661,24 +661,61 @@ function App() {
   let timeout;
   let doneTypingInterval = 1000;
   const checkApprove = async () => {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const signerAddress = await signer.getAddress();
-    const allowanceContract = contractToken.methods.allowance(signerAddress, fixedStakingAddress).call();
-    console.log(allowanceContract)
-    let text = document.getElementById('amountStake-a').value;
-    console.log(text)
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
+      let promiseAllowance1 = new Promise(async function (resolve) {
+        const allowanceContract1 = contractToken.methods.allowance(signerAddress, fixedStakingAddress).call();
+        resolve(allowanceContract1)
+      })
+      let promiseAllowance2 = new Promise(async function (resolve) {
+        const allowanceContract2 = contractToken.methods.allowance(signerAddress, fixedStakingAddress).call();
+        resolve(allowanceContract2)
+      })
+      let promiseAllowance3 = new Promise(async function (resolve) {
+        const allowanceContract3 = contractToken.methods.allowance(signerAddress, fixedStakingAddress).call();
+        resolve(allowanceContract3)
+      })
+      Promise.all([promiseAllowance1, promiseAllowance2, promiseAllowance3]).then(function ([result1, result2, result3]) {
+        let etherAllowance1 = web3.utils.fromWei(result1, "ether");
+        let valueKeyUp1 = document.getElementById('amountStake-a').value;
 
-    clearTimeout(timeout)
-    timeout = setTimeout(function () {
-      if (allowanceContract >= text) {
-        document.getElementById('staking-a').style.display = '';
-        document.getElementById('approve-one').style.display = 'none';
-      } else {
-        document.getElementById('staking-a').style.display = 'none';
-        document.getElementById('approve-one').style.display = '';
-      }
-    }, doneTypingInterval)
+        let etherAllowance2 = web3.utils.fromWei(result2, "ether");
+        let valueKeyUp2 = document.getElementById('amountStake-b').value;
+
+        let etherAllowance3 = web3.utils.fromWei(result3, "ether");
+        let valueKeyUp3 = document.getElementById('amountStake-c').value;
+
+        timeout = setTimeout(function () {
+          if (Number(etherAllowance1) >= valueKeyUp1) {
+            document.getElementById('staking-a').style.display = '';
+            document.getElementById('approve-a').style.display = 'none';
+          } else {
+            document.getElementById('staking-a').style.display = 'none';
+            document.getElementById('approve-a').style.display = 'block';
+          }
+
+          if (Number(etherAllowance2) >= valueKeyUp2) {
+            document.getElementById('staking-b').style.display = '';
+            document.getElementById('approve-b').style.display = 'none';
+          } else {
+            document.getElementById('staking-b').style.display = 'none';
+            document.getElementById('approve-b').style.display = 'block';
+          }
+
+          if (Number(etherAllowance3) >= valueKeyUp3) {
+            document.getElementById('staking-c').style.display = '';
+            document.getElementById('approve-c').style.display = 'none';
+          } else {
+            document.getElementById('staking-c').style.display = 'none';
+            document.getElementById('approve-c').style.display = 'block';
+          }
+        }, doneTypingInterval)
+      })
+    } catch (error) {
+      return;
+    }
   }
 
   const checkTimeOut = async () => {
@@ -742,12 +779,6 @@ function App() {
             <p class="p-form">{duration.durationOne} Mins Term</p>
             <p class="p-form">APR : {interestRate.interestRateOne}%</p>
             <div>
-              <form onSubmit={handleApprove} id="approve-one">
-                <input type="hidden" name="amount" value="1000000"></input>
-                <button type="submit" class="button-40" id="approve-a">
-                  Approve
-                </button>
-              </form>
 
               <form onSubmit={handleStake} id="stake-one" >
                 <input
@@ -764,35 +795,42 @@ function App() {
                 </button>
               </form>
 
-              <div  >
-                <input type="hidden" name="withdraw-one" value={term[0]}></input>
-                <div className="modal fade" id="exampleModalCenter-a" role="dialog" aria-labelledby="exampleModalCenterTitle"
-                  aria-hidden="true">
-                  <div className="modal-dialog modal-dialog-centered" role="document">
-                    <div className="modal-content">
-                      <div className="modal-header">
-                        <h5 className="modal-title" id="exampleModalLongTitle">Notification</h5>
-                        <button type="button" className="close" data-dismiss="modal" aria-label="Close">
-                          <span aria-hidden="true">&times;</span>
-                        </button>
-                      </div>
+              <div className="modal fade" id="exampleModalCenter-a" role="dialog" aria-labelledby="exampleModalCenterTitle"
+                aria-hidden="true">
+                <div className="modal-dialog modal-dialog-centered" role="document">
+                  <div className="modal-content">
+                    <div className="modal-header">
+                      <h5 className="modal-title" id="exampleModalLongTitle">Notification</h5>
+                      <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                      </button>
+                    </div>
 
-                      <div className="modal-body">
-                        If you claim before the end time, your request will go to a 5 minute cooldown.
-                        You will be subject to an early withdrawal fee of (1%) and will not be able to bet back on this pool until the cooldown is over
-                      </div>
-                      <div className="modal-footer" >
-                        <button type="button" className="btn btn-secondary" data-dismiss="modal">Close</button>
-                        <button className="btn btn-primary" data-dismiss="modal" onClick={() => { handleUnStake(term[0]) }}>Continue</button>
-                      </div>
+                    <div className="modal-body">
+                      If you claim before the end time, your request will go to a 5 minute cooldown.
+                      You will be subject to an early withdrawal fee of (1%) and will not be able to bet back on this pool until the cooldown is over
+                    </div>
+                    <div className="modal-footer" >
+                      <button type="button" className="btn btn-secondary" data-dismiss="modal">Close</button>
+                      <button className="btn btn-primary" data-dismiss="modal" onClick={() => { handleUnStake(term[0]) }}>Continue</button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <button type="button" id="claim-a" class="button-40" data-toggle="modal" data-target="#exampleModalCenter-a">
-                Claim
-              </button>
+              <div class="flex-understake">
+                <button type="button" id="claim-a" class="button-41" data-toggle="modal" data-target="#exampleModalCenter-a">
+                  Early Withdraw
+                </button>
+
+                <form onSubmit={handleApprove} >
+                  <input type="hidden" name="amount" value="1000000"></input>
+                  <button type="submit" class="button-41" id="approve-a">
+                    Approve
+                  </button>
+                </form>
+              </div>
+
 
             </div>
 
@@ -807,10 +845,10 @@ function App() {
                 <button
                   type="submit"
                   onClick={() => handleUnstakeTokenHold(term[0])}
-                  class="button-40"
+                  class="button-41"
                   id="hold-token-a"
                 >
-                  Withdraw
+                  Claim
                 </button>
               </div>
             </div>
@@ -864,21 +902,17 @@ function App() {
             <p class="p-form">{duration.durationTwo} Mins Term</p>
             <p class="p-form">APR : {interestRate.interestRateTwo}%</p>
             <div>
-              <form onSubmit={handleApprove} id="approve-two">
-
-                <button type="submit" class="button-40">
-                  Approve
-                </button>
-              </form>
               <form onSubmit={handleStake} id="stake-two">
                 <input
                   type="text"
                   name="amount"
                   placeholder="Amount to stake"
                   id="amountStake-b"
+                  onKeyUp={checkApprove}
+                  onKeyDown={checkTimeOut}
                 />
                 <input type="hidden" name="term-two" value={term[1]}></input>
-                <button type="submit" class="button-40" >
+                <button type="submit" class="button-40" id="staking-b">
                   Stake
                 </button>
               </form>
@@ -905,10 +939,18 @@ function App() {
                 </div>
               </div>
 
+              <div class="flex-understake">
+                <button type="submit" id="claim-b" class="button-41" data-toggle="modal" data-target="#exampleModalCenter-b">
+                  Early Withdraw
+                </button>
 
-              <button type="submit" id="claim-b" class="button-40" data-toggle="modal" data-target="#exampleModalCenter-b">
-                Claim
-              </button>
+                <form onSubmit={handleApprove} >
+                  <input type="hidden" name="amount" value="1000000"></input>
+                  <button type="submit" class="button-41" id="approve-b">
+                    Approve
+                  </button>
+                </form>
+              </div>
             </div>
 
             <div class="tokenHeld">
@@ -922,10 +964,10 @@ function App() {
                 <button
                   type="submit"
                   onClick={() => handleUnstakeTokenHold(term[1])}
-                  class="button-40"
+                  class="button-41"
                   id="hold-token-b"
                 >
-                  Withdraw
+                  Claim
                 </button>
               </div>
             </div>
@@ -979,23 +1021,33 @@ function App() {
             <p class="p-form">{duration.durationThree} Mins Term</p>
             <p class="p-form">APR : {interestRate.interestRateThree}%</p>
             <div>
-              <form onSubmit={handleApprove} id="approve-three">
-                <button type="submit" class="button-40">
-                  Approve
-                </button>
-              </form>
               <form onSubmit={handleStake} id="stake-three">
                 <input
                   type="text"
                   name="amount"
                   placeholder="Amount to stake"
                   id="amountStake-c"
+                  onKeyUp={checkApprove}
+                  onKeyDown={checkTimeOut}
                 />
                 <input type="hidden" name="term-three" value={term[2]}></input>
-                <button type="submit" class="button-40" >
+                <button type="submit" class="button-40" id="staking-c">
                   Stake
                 </button>
               </form>
+
+              <div class="flex-understake">
+                <button type="submit" id="claim-c" class="button-41" data-toggle="modal" data-target="#exampleModalCenter-c">
+                  Early Withdraw
+                </button>
+
+                <form onSubmit={handleApprove} >
+                  <input type="hidden" name="amount" value="1000000"></input>
+                  <button type="submit" class="button-41" id="approve-c">
+                    Approve
+                  </button>
+                </form>
+              </div>
 
               <div className="modal fade" id="exampleModalCenter-c" role="dialog" aria-labelledby="exampleModalCenterTitle"
                 aria-hidden="true">
@@ -1018,11 +1070,8 @@ function App() {
                   </div>
                 </div>
               </div>
-
-              <button type="submit" id="claim-c" class="button-40" data-toggle="modal" data-target="#exampleModalCenter-c">
-                Claim
-              </button>
             </div>
+
 
             <div class="tokenHeld">
               <div>
@@ -1035,10 +1084,10 @@ function App() {
                 <button
                   type="submit"
                   onClick={() => handleUnstakeTokenHold(term[2])}
-                  class="button-40"
+                  class="button-41"
                   id="hold-token-c"
                 >
-                  Withdraw
+                  Claim
                 </button>
               </div>
             </div>

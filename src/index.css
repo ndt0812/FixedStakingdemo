@@ -43,7 +43,7 @@ p {
 
 th,
 td {
-    padding: 5px 10px;
+    padding: 0px 5px 5px 10px
 }
 
 #bsrInfo {
@@ -54,11 +54,12 @@ td {
 }
 
 input {
-    border-radius: 1.8em;
-    height: 40px;
-    width: 55%;
+    border-radius: 0.75rem;
+    height: 50px;
+    width: 45%;
     padding: 0.8em 1em;
-    margin: 5px 5px 0px 0px;
+    margin: 5px 15px 0px 0px;
+    font-size: 14px
 }
 
 .button-40 {
@@ -84,7 +85,7 @@ input {
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
-    width: 130px;
+    width: 140px;
 }
 
 .button-40:hover {
@@ -99,6 +100,60 @@ input {
 
 @media (min-width: 768px) {
     .button-40 {
+        padding: .75rem 1.5rem;
+    }
+}
+
+#approve-a {
+    display: none;
+}
+
+#approve-b {
+    display: none;
+}
+
+#approve-c {
+    display: none;
+}
+
+.button-41 {
+    background-color: #111827;
+    margin: 2px;
+    border: 1px solid transparent;
+    border-radius: .75rem;
+    box-sizing: border-box;
+    color: #FFFFFF;
+    cursor: pointer;
+    flex: 0 0 auto;
+    font-family: "Inter var", ui-sans-serif, system-ui, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: 13px;
+    font-weight: 550;
+    line-height: 1.5rem;
+    padding: .7rem 1rem;
+    text-align: center;
+    text-decoration: none #6B7280 solid;
+    text-decoration-thickness: auto;
+    transition-duration: .2s;
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(.4, 0, 0.2, 1);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    width: 140px;
+}
+
+.button-41:hover {
+    background-color: #374151;
+}
+
+.button-41:focus {
+    box-shadow: none;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+    .button-41 {
         padding: .75rem 1.5rem;
     }
 }
@@ -171,14 +226,14 @@ table {
 
 .container {
     position: relative;
-    font-size: medium;
+    font-size: 15px;
     border-radius: 16px;
     padding: 30px;
     margin: 0 15px;
     background-color: #FFFFFF;
     text-align: center;
     max-height: 850px;
-    max-width: 472px;
+    max-width: 390px;
 }
 
 .p-form {
@@ -193,4 +248,9 @@ table {
 .tokenHeld {
     display: flex;
     flex-direction: column;
+}
+
+.flex-understake {
+    display: flex;
+    justify-content: space-around;
 }
